@@ -224,7 +224,7 @@ class VenvExecutor(Executor):
                 raise Exception('Python version must be 3.10')
             python_executable = sys.executable
         else:
-            if python_executable_exists(python_executable):
+            if not python_executable_exists(python_executable):
                 raise Exception(f'Python executable does not exist at {python_executable}')
 
         self._run_subprocess_and_raise_on_failure(
