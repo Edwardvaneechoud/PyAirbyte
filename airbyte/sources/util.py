@@ -51,6 +51,7 @@ def get_source(
     pip_url: str | None = None,
     local_executable: Path | str | None = None,
     install_if_missing: bool = True,
+    python_executable: str = None
 ) -> Source:
     """Get a connector by name and version.
 
@@ -134,7 +135,7 @@ def get_source(
             pip_url=pip_url,
         )
         if install_if_missing:
-            executor.ensure_installation()
+            executor.ensure_installation(python_executable=python_executable)
 
         return Source(
             name=name,

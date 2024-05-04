@@ -34,6 +34,10 @@ def _get_bin_dir(venv_path: Path, /) -> Path:
     return venv_path / "bin"
 
 
+def python_executable_exists(path):
+    return Path(path).exists()
+
+
 class Executor(ABC):
     def __init__(
         self,
@@ -66,7 +70,7 @@ class Executor(ABC):
         pass
 
     @abstractmethod
-    def ensure_installation(self, *, auto_fix: bool = True) -> None:
+    def ensure_installation(self, *, auto_fix: bool = True, python_executable: str = None) -> None:
         _ = auto_fix
         pass
 
@@ -210,13 +214,21 @@ class VenvExecutor(Executor):
             "source-", ""
         )
 
-    def install(self) -> None:
+    def install(self, python_executable: str = None) -> None:
         """Install the connector in a virtual environment.
 
         After installation, the installed version will be stored in self.reported_version.
         """
+        if python_executable is None:
+            if sys.version_info.minor != 10:
+                raise Exception('Python version must be 3.10')
+            python_executable = sys.executable
+        else:
+            if python_executable_exists(python_executable):
+                raise Exception(f'Python executable does not exist at {python_executable}')
+
         self._run_subprocess_and_raise_on_failure(
-            [sys.executable, "-m", "venv", str(self._get_venv_path())]
+            [python_executable, "-m", "venv", str(self._get_venv_path())]
         )
 
         pip_path = str(_get_bin_dir(self._get_venv_path()) / "pip")
@@ -303,6 +315,7 @@ class VenvExecutor(Executor):
         self,
         *,
         auto_fix: bool = True,
+        python_executable: str = None
     ) -> None:
         """Ensure that the connector is installed in a virtual environment.
 
@@ -332,7 +345,7 @@ class VenvExecutor(Executor):
                 )
 
             # If the venv path does not exist, install.
-            self.install()
+            self.install(python_executable)
             reinstalled = True
 
         elif not self._get_connector_path().exists():
@@ -352,7 +365,7 @@ class VenvExecutor(Executor):
                 f"at {self._get_connector_path()!s}.\nReinstalling..."
             )
             self.uninstall()
-            self.install()
+            self.install(python_executable)
             reinstalled = True
 
         # By now, everything should be installed. Raise an exception if not.
@@ -372,7 +385,7 @@ class VenvExecutor(Executor):
             if self.reported_version != self.target_version:
                 if auto_fix and not reinstalled:
                     # If we haven't already reinstalled above, reinstall now.
-                    self.install()
+                    self.install(python_executable)
                     reinstalled = True
 
                 if reinstalled:
@@ -419,6 +432,7 @@ class PathExecutor(Executor):
         self,
         *,
         auto_fix: bool = True,
+        python_executable: str = None
     ) -> None:
         """Ensure that the connector executable can be found.
 
