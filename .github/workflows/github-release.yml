@@ -1,0 +1,35 @@
+name: Build and Release to GitHub
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags
+
+jobs:
+  build-and-github-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Needed to upload artifacts to the release
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
+
+    - name: Build package
+      run: poetry build
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          dist/*.whl
+          dist/*.tar.gz
