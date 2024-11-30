@@ -30,6 +30,8 @@ DEFAULT_MANIFEST_URL = (
     "https://connectors.airbyte.com/files/metadata/airbyte/{source_name}/{version}/manifest.yaml"
 )
 
+DEFAULT_DOCKER_MOUNT_DIR = Path.home() / '.airbyte' / 'connectors'
+
 
 def _try_get_source_manifest(
     source_name: str,
@@ -126,6 +128,7 @@ def get_connector_executor(  # noqa: PLR0912, PLR0913, PLR0915 # Too many branch
     source_manifest: bool | dict | Path | str | None = None,
     install_if_missing: bool = True,
     install_root: Path | None = None,
+    mount_dir: Path | None = None,  # New optional parameter for docker mount location
 ) -> Executor:
     """This factory function creates an executor for a connector.
 
@@ -219,8 +222,8 @@ def get_connector_executor(  # noqa: PLR0912, PLR0913, PLR0915 # Too many branch
 
         temp_dir = TEMP_DIR_OVERRIDE or Path(tempfile.gettempdir())
 
-        local_mount_dir = Path().absolute() / name
-        local_mount_dir.mkdir(exist_ok=True)
+        local_mount_dir = (mount_dir or DEFAULT_DOCKER_MOUNT_DIR) / name
+        local_mount_dir.mkdir(exist_ok=True, parents=True)
 
         docker_cmd = [
             "docker",
