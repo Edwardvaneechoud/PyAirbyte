@@ -4,6 +4,7 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, cast
+import platform
 
 import requests
 import yaml
@@ -19,6 +20,7 @@ from airbyte._util.telemetry import EventState, log_install_state  # Non-public 
 from airbyte.constants import AIRBYTE_OFFLINE_MODE, TEMP_DIR_OVERRIDE
 from airbyte.sources.registry import ConnectorMetadata, InstallType, get_connector_metadata
 from airbyte.version import get_version
+
 
 
 if TYPE_CHECKING:
@@ -224,6 +226,7 @@ def get_connector_executor(  # noqa: PLR0912, PLR0913, PLR0915 # Too many branch
 
         local_mount_dir = (mount_dir or DEFAULT_DOCKER_MOUNT_DIR) / name
         local_mount_dir.mkdir(exist_ok=True, parents=True)
+        temp_mount = f"/tmp" if platform.system() == "Windows" else temp_dir
 
         docker_cmd = [
             "docker",
@@ -233,7 +236,7 @@ def get_connector_executor(  # noqa: PLR0912, PLR0913, PLR0915 # Too many branch
             "--volume",
             f"{local_mount_dir}:/local/",
             "--volume",
-            f"{temp_dir}:{temp_dir}",
+            f"{temp_dir}:{temp_mount}",  # Mount temp dir to /tmp
         ]
 
         if use_host_network is True:

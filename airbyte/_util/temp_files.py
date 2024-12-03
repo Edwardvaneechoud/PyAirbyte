@@ -10,6 +10,7 @@ import warnings
 from contextlib import contextmanager, suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+import platform
 
 from airbyte.constants import TEMP_DIR_OVERRIDE
 
@@ -20,12 +21,11 @@ if TYPE_CHECKING:
 
 @contextmanager
 def as_temp_files(files_contents: list[dict | str]) -> Generator[list[str], Any, None]:
-    """Write the given contents to temporary files and yield the file paths as strings."""
     temp_files: list[Any] = []
     try:
         for content in files_contents:
             use_json = isinstance(content, dict)
-            temp_file = tempfile.NamedTemporaryFile(  # noqa: SIM115  # Avoiding context manager
+            temp_file = tempfile.NamedTemporaryFile(
                 mode="w+t",
                 delete=False,
                 encoding="utf-8",
@@ -36,27 +36,40 @@ def as_temp_files(files_contents: list[dict | str]) -> Generator[list[str], Any,
                 json.dumps(content) if isinstance(content, dict) else content,
             )
             temp_file.flush()
-            # Don't close the file yet (breaks Windows)
-            # temp_file.close()
-            temp_files.append(temp_file)
-        yield [file.name for file in temp_files]
+
+            if platform.system() == "Windows":
+                docker_path = f"/tmp/{Path(temp_file.name).name}"
+                temp_files.append((temp_file, docker_path))
+            else:
+                temp_files.append(temp_file)
+
+        if platform.system() == "Windows":
+            yield [docker_path for _, docker_path in temp_files]
+        else:
+            yield [file.name for file in temp_files]
+
     finally:
-        for temp_file in temp_files:
-            max_attempts = 5
-            for attempt in range(max_attempts):
-                try:
-                    with suppress(Exception):
-                        temp_file.close()
+        if platform.system() == "Windows":
+            for temp_file, _ in temp_files:
+                _cleanup_temp_file(temp_file)
+        else:
+            for temp_file in temp_files:
+                _cleanup_temp_file(temp_file)
 
-                    Path(temp_file.name).unlink(missing_ok=True)
 
-                    break  # File was deleted successfully. Move on.
-                except Exception as ex:
-                    if attempt < max_attempts - 1:
-                        time.sleep(1)  # File might not be closed yet. Wait and try again.
-                    else:
-                        # Something went wrong and the file could not be deleted. Warn the user.
-                        warnings.warn(
-                            f"Failed to remove temporary file: '{temp_file.name}'. {ex}",
-                            stacklevel=2,
-                        )
+def _cleanup_temp_file(temp_file):
+    max_attempts = 5
+    for attempt in range(max_attempts):
+        try:
+            with suppress(Exception):
+                temp_file.close()
+            Path(temp_file.name).unlink(missing_ok=True)
+            break
+        except Exception as ex:
+            if attempt < max_attempts - 1:
+                time.sleep(1)
+            else:
+                warnings.warn(
+                    f"Failed to remove temporary file: '{temp_file.name}'. {ex}",
+                    stacklevel=2,
+                )
