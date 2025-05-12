@@ -1,16 +1,16 @@
 [tool.poetry]
-name = "airbyte"
-description = "PyAirbyte"
-authors = ["Airbyte <contact@airbyte.io>"]
+name = "pyairbyte-flowfile"
+description = "PyAirbyte for Flowfile"
+authors = ["Airbyte <contact@airbyte.io>", "Edward van Eechoud <evaneechoud@gmail.com"]
 readme = "README.md"
 packages = [{ include = "airbyte" }]
 
 # This project uses dynamic versioning
 # https://github.com/mtkennerly/poetry-dynamic-versioning
-version = "0.0.0"
+version = "0.20.2"
 
 [tool.poetry-dynamic-versioning]
-enable = true
+enable = false
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
